@@ -15,7 +15,6 @@ class CategoriesController:
 
     def get_unique(self, category_id):
         category = Categories.query.get_or_404(category_id)
-        print(category)
         return jsonify({"id": category.id,
                         "name": category.name,
                         "description": category.description,

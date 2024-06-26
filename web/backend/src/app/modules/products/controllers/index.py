@@ -1,4 +1,3 @@
-import json
 from flask import jsonify, abort
 from ..models.Products import Products
 from ....db import conn_db
