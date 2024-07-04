@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router-dom";
 
 import Dashboard from "../pages/Dashboard";
 import App from "../App";
+import Categories from "../pages/Categories";
 
 const router = createBrowserRouter([
   {
@@ -11,6 +12,10 @@ const router = createBrowserRouter([
       {
         path: "/",
         element: <Dashboard />,
+      },
+      {
+        path: "/categories",
+        element: <Categories />,
       },
     ],
   },
