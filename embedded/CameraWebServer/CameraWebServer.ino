@@ -40,6 +40,14 @@ const char* ssid = "MEI";
 const char* password = "205M20E15I";
 
 
+// ================
+// Presence Sensor
+// ================
+
+const int PIN_TO_SENSOR_PRESENCE = 13; //GPIO13
+int pinStateCurrent   = LOW;  // current state of pin
+int pinStatePrevious  = LOW;  // previous state of pin
+
 void startCameraServer();
 void setupLedFlash(int pin);
 
@@ -47,6 +55,8 @@ void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println();
+
+  pinMode(PIN_TO_SENSOR_PRESENCE, INPUT); // Presence Sensor
 
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -153,5 +163,24 @@ void setup() {
 
 void loop() {
   // Do nothing. Everything is done in another task by the web server
-  delay(10000);
+
+  // Presence Sensor
+  pinStatePrevious = pinStateCurrent; // store old state
+  pinStateCurrent = digitalRead(PIN_TO_SENSOR_PRESENCE);   // read new state
+  Serial.print("pinStatePrevious = ");
+  Serial.print(pinStatePrevious);
+  Serial.println("");
+  Serial.print("pinStateCurrent = ");
+  Serial.print(pinStateCurrent);
+  Serial.println("");
+  if (pinStatePrevious == LOW && pinStateCurrent == HIGH) {   // pin state change: LOW -> HIGH
+    Serial.println("Motion detected!");
+    // TODO: turn on alarm, light or activate a device ... here
+  }
+  else
+  if (pinStatePrevious == HIGH && pinStateCurrent == LOW) {   // pin state change: HIGH -> LOW
+    Serial.println("Motion stopped!");
+    // TODO: turn off alarm, light or deactivate a device ... here
+  }
+  delay(5000);
 }
