@@ -1,5 +1,7 @@
+import "./styles.scss";
+
 const Dashboard = () => {
-  return <h1></h1>;
+  return <div className="content"></div>;
 };
 
 export default Dashboard;
