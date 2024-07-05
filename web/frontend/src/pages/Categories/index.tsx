@@ -1,5 +1,6 @@
-import { Button, Card, Container } from "react-bootstrap";
+import { Button, Card, Container, Table } from "react-bootstrap";
 import "./styles.scss";
+import CategoriesTable from "../../components/Tables/CategoriesTable";
 
 const Categories = () => {
   return (
@@ -9,6 +10,8 @@ const Categories = () => {
           <Card.Title> Categories </Card.Title>
           <Button variant="primary"> New Category </Button>
         </Card.Header>
+
+        <CategoriesTable />
       </Card>
     </div>
   );
