@@ -1,5 +1,6 @@
 #include "esp_camera.h"
 #include <WiFi.h>
+#include <Stepper.h>
 
 //
 // WARNING!!! PSRAM IC required for UXGA resolution and high JPEG quality
@@ -22,7 +23,7 @@
 //#define CAMERA_MODEL_M5STACK_ESP32CAM // No PSRAM
 //#define CAMERA_MODEL_M5STACK_UNITCAM // No PSRAM
 //#define CAMERA_MODEL_M5STACK_CAMS3_UNIT  // Has PSRAM
-#define CAMERA_MODEL_AI_THINKER // Has PSRAM
+#define CAMERA_MODEL_AI_THINKER  // Has PSRAM
 //#define CAMERA_MODEL_TTGO_T_JOURNAL // No PSRAM
 //#define CAMERA_MODEL_XIAO_ESP32S3 // Has PSRAM
 // ** Espressif Internal Boards **
@@ -39,24 +40,46 @@
 const char* ssid = "MEI";
 const char* password = "205M20E15I";
 
+void startCameraServer();
+void setupLedFlash(int pin);
 
 // ================
 // Presence Sensor
 // ================
 
-const int PIN_TO_SENSOR_PRESENCE = 13; //GPIO13
-int pinStateCurrent   = LOW;  // current state of pin
-int pinStatePrevious  = LOW;  // previous state of pin
+const int PIN_TO_SENSOR_PRESENCE = 12;  //GPIO12
+int pinStateCurrent = LOW;              // current state of pin
+int pinStatePrevious = LOW;             // previous state of pin
 
-void startCameraServer();
-void setupLedFlash(int pin);
+
+// ================
+// Step Motor
+// ================
+const int PIN_1_TO_STEP_MOTOR = 13;  //GPIO13
+const int PIN_2_TO_STEP_MOTOR = 15;  //GPIO15
+const int PIN_3_TO_STEP_MOTOR = 14;  //GPIO14
+const int PIN_4_TO_STEP_MOTOR = 2;   //GPIO12
+
+const int stepsPerRevolution = 500;
+
+Stepper myStepper(stepsPerRevolution,
+                  PIN_1_TO_STEP_MOTOR,
+                  PIN_3_TO_STEP_MOTOR,
+                  PIN_2_TO_STEP_MOTOR,
+                  PIN_4_TO_STEP_MOTOR);
 
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println();
 
-  pinMode(PIN_TO_SENSOR_PRESENCE, INPUT); // Presence Sensor
+  // Presence Sensor
+
+  pinMode(PIN_TO_SENSOR_PRESENCE, INPUT);
+
+  // Step Motor
+
+  myStepper.setSpeed(60);
 
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -118,7 +141,7 @@ void setup() {
     return;
   }
 
-  sensor_t *s = esp_camera_sensor_get();
+  sensor_t* s = esp_camera_sensor_get();
   // initial sensors are flipped vertically and colors are a bit saturated
   if (s->id.PID == OV3660_PID) {
     s->set_vflip(s, 1);        // flip it back
@@ -165,20 +188,18 @@ void loop() {
   // Do nothing. Everything is done in another task by the web server
 
   // Presence Sensor
-  pinStatePrevious = pinStateCurrent; // store old state
-  pinStateCurrent = digitalRead(PIN_TO_SENSOR_PRESENCE);   // read new state
-  Serial.print("pinStatePrevious = ");
-  Serial.print(pinStatePrevious);
-  Serial.println("");
+  //pinStatePrevious = pinStateCurrent;                     // store old state
+  pinStateCurrent = digitalRead(PIN_TO_SENSOR_PRESENCE);  // read new state
+  //Serial.print("pinStatePrevious = ");
+  //Serial.print(pinStatePrevious);
+  //Serial.println("");
   Serial.print("pinStateCurrent = ");
   Serial.print(pinStateCurrent);
   Serial.println("");
-  if (pinStatePrevious == LOW && pinStateCurrent == HIGH) {   // pin state change: LOW -> HIGH
+  if (pinStateCurrent == HIGH) {  // pin state change: LOW -> HIGH
     Serial.println("Motion detected!");
-    // TODO: turn on alarm, light or activate a device ... here
-  }
-  else
-  if (pinStatePrevious == HIGH && pinStateCurrent == LOW) {   // pin state change: HIGH -> LOW
+    myStepper.step(stepsPerRevolution);
+  } else {  // pin state change: HIGH -> LOW
     Serial.println("Motion stopped!");
     // TODO: turn off alarm, light or deactivate a device ... here
   }
