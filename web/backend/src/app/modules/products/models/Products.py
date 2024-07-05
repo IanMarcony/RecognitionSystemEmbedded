@@ -11,6 +11,8 @@ class Products(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     deleted_at = db.Column(db.DateTime, nullable=True, default=None)
+    id_category = db.Column(db.Integer, db.ForeignKey('categories.id'))
+    category = db.relationship("Categories", backref='categories')
 
     def __repr__(self):
         return f'<Product {self.name}>'
