@@ -1,30 +1,26 @@
 import { Table } from "react-bootstrap";
+import type { CategoryBase } from "../../../models/category.interface";
 
-const CategoriesTable = () => {
+const CategoriesTable: React.FC<{ categories: CategoryBase[] }> = ({
+  categories,
+}) => {
   return (
-    <Table striped hover responsive>
-      <thead>
-        <tr>
+    <Table striped hover responsive className="mh-100">
+      <thead style={{ position: "sticky", top: 0 }}>
+        <tr className="table-secondary">
           <th>Id</th>
           <th>Name</th>
           <th>Description</th>
         </tr>
       </thead>
       <tbody>
-        <tr>
-          <td>1</td>
-          <td>Mark</td>
-          <td>Otto</td>
-        </tr>
-        <tr>
-          <td>2</td>
-          <td>Jacob</td>
-          <td>Thornton</td>
-        </tr>
-        <tr>
-          <td>3</td>
-          <td colSpan={2}>Larry the Bird</td>
-        </tr>
+        {categories.map((obj) => (
+          <tr>
+            <td> {obj.id} </td>
+            <td> {obj.name} </td>
+            <td> {obj.description} </td>
+          </tr>
+        ))}
       </tbody>
     </Table>
   );
