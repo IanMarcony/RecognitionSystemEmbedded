@@ -68,6 +68,10 @@ Stepper myStepper(stepsPerRevolution,
                   PIN_2_TO_STEP_MOTOR,
                   PIN_4_TO_STEP_MOTOR);
 
+unsigned long motionDetectedTime = 0;
+const unsigned long motorRunDuration = 10*1000; // 10 seconds
+int isAbleToDetectMotion = 1;
+
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
@@ -185,23 +189,30 @@ void setup() {
 }
 
 void loop() {
-  // Do nothing. Everything is done in another task by the web server
+  unsigned long currentTime = millis();
 
-  // Presence Sensor
-  //pinStatePrevious = pinStateCurrent;                     // store old state
-  pinStateCurrent = digitalRead(PIN_TO_SENSOR_PRESENCE);  // read new state
-  //Serial.print("pinStatePrevious = ");
-  //Serial.print(pinStatePrevious);
-  //Serial.println("");
-  Serial.print("pinStateCurrent = ");
-  Serial.print(pinStateCurrent);
-  Serial.println("");
-  if (pinStateCurrent == HIGH) {  // pin state change: LOW -> HIGH
-    Serial.println("Motion detected!");
-    myStepper.step(stepsPerRevolution);
-  } else {  // pin state change: HIGH -> LOW
-    Serial.println("Motion stopped!");
-    // TODO: turn off alarm, light or deactivate a device ... here
+  if(isAbleToDetectMotion==1){
+    pinStateCurrent = digitalRead(PIN_TO_SENSOR_PRESENCE);
+    Serial.print("pinStateCurrent = ");
+    Serial.print(pinStateCurrent);
+    Serial.println("");
+
+    if (pinStateCurrent == HIGH) { // Detect motion
+      Serial.println("Motion detected!");
+      motionDetectedTime = currentTime; // Record the time motion was detected
+    }
   }
-  delay(5000);
+
+
+  if (currentTime - motionDetectedTime < motorRunDuration) {
+    Serial.println("Rotating motor!");
+    myStepper.step(stepsPerRevolution / 10); // Rotate 36 degrees every loop iteration (to make full revolution in ~1 second)
+    isAbleToDetectMotion = 0;
+  } else {
+    isAbleToDetectMotion = 1;
+    Serial.println("Stop the motor!");
+    myStepper.step(0); // Stop the motor
+  }
+
+  delay(100); // Small delay to reduce noise and debounce
 }
