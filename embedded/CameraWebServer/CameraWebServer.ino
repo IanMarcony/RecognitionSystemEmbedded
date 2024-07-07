@@ -1,6 +1,7 @@
 #include "esp_camera.h"
 #include <WiFi.h>
 #include <Stepper.h>
+#include <ArduinoJson.h>
 #include <ArduinoWebsockets.h>
 #include "esp_timer.h"
 #include "img_converters.h"
@@ -10,6 +11,7 @@
 #include "soc/rtc_cntl_reg.h"  //disable brownout problems
 #include "esp_http_server.h"
 #include "driver/gpio.h"
+#include <PubSubClient.h>
 
 #define CAMERA_MODEL_AI_THINKER  // Has PSRAM
 
@@ -89,6 +91,16 @@ Stepper myStepper(stepsPerRevolution,
 unsigned long motionDetectedTime = 0;
 const unsigned long motorRunDuration = 15*1000; // 10 seconds
 int isAbleToDetectMotion = 1;
+
+
+// ================
+// Mqtt
+// ================
+WiFiClient espClient;
+PubSubClient clientMqtt(espClient);
+
+const char* mqtt_server = "test.mosquitto.org";
+const int mqtt_port = 1883; // Porta padrão do MQTT
 
 void setup() { 
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
@@ -190,10 +202,22 @@ void setup() {
 
   Serial.println("WS OK");
   client.send("hello from ESP32 camera stream!");
+
+  // Setting Mqtt Client
+  clientMqtt.setServer(mqtt_server, mqtt_port);
+
 }
 
 void loop() {
-   if (client.available()) {
+  if (!clientMqtt.connected()) {
+    reconnect();
+  }
+  clientMqtt.loop();
+  
+  // Montando o JSON
+  StaticJsonDocument<200> doc; 
+
+  if (client.available()) {
     camera_fb_t *fb = esp_camera_fb_get();
     if (!fb) {
       Serial.println("img capture failed");
@@ -202,10 +226,14 @@ void loop() {
     }
     client.sendBinary((const char*) fb->buf, fb->len);
     Serial.println("image sent");
+    doc["camera"]=1;
+    doc["esp_connected_ws"]=1;
     esp_camera_fb_return(fb);
     client.poll();
   } else {
     bool connected = client.connect(websockets_server_host, websockets_server_port, "/");
+    doc["esp_connected_ws"]=connected;
+    doc["camera"]=0;
     Serial.print("Retry Connection result = ");
     Serial.print(connected);
     Serial.println(" ");
@@ -215,13 +243,14 @@ void loop() {
 
   if(isAbleToDetectMotion==1){
     pinStateCurrent = digitalRead(PIN_TO_SENSOR_PRESENCE);
+    doc["sensor_presence"]=pinStateCurrent==HIGH? 1: 0;
     //Serial.print("pinStateCurrent = ");
     //Serial.print(pinStateCurrent);
     //Serial.println("");
 
     if (pinStateCurrent == HIGH) { // Detect motion
       //Serial.println("Motion detected!");
-      motionDetectedTime = currentTime; // Record the time motion was detected
+      motionDetectedTime = currentTime; // Record the time motion was detected      
     }
   }
 
@@ -230,13 +259,39 @@ void loop() {
     //Serial.println("Rotating motor!");
     myStepper.step(stepsPerRevolution / 10); // Rotate 36 degrees every loop iteration (to make full revolution in ~1 second)
     isAbleToDetectMotion = 0;
+    doc["belt_moving"]=1;
   } else {
     isAbleToDetectMotion = 1;
     //Serial.println("Stop the motor!");
     myStepper.step(0); // Stop the motor
+    doc["belt_moving"]=0;
   }
+
+  char jsonBuffer[256]; 
+  serializeJson(doc, jsonBuffer); 
+
+  Serial.print("Enviando JSON: ");
+  Serial.println(jsonBuffer);
+
+  // Sending information to mqtt broker
+  clientMqtt.publish("payload/ser/info", jsonBuffer);
+
 
   delay(100); // Small delay to reduce noise and debounce
 }
 
+
+void reconnect() {
+  while (!clientMqtt.connected()) {
+    Serial.print("Tentando conectar ao MQTT...");
+    if (clientMqtt.connect("SisEmbRec")) {
+      Serial.println("Conectado");
+    } else {
+      Serial.print("Falha, rc=");
+      Serial.print(clientMqtt.state());
+      Serial.println(" Tente novamente em 5 segundos");
+      delay(5000);
+    }
+  }
+}
 
