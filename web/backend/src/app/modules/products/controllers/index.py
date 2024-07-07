@@ -23,10 +23,11 @@ class ProductsController:
                         "created_at": product.created_at})
 
     def create(self, body_product):
-        if not body_product.json or not 'name' in body_product.json:
+        if not body_product.json or not 'name' in body_product.json or not 'id_category' in body_product.json:
             abort(400)
         product = Products(name=body_product.json['name'],
                         imagem=body_product.json['imagem'],
+                        id_category=body_product.json['id_category'],
                         description=body_product.json['description'])
         db.session.add(product)
         db.session.commit()
