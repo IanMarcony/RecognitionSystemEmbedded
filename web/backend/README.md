@@ -25,3 +25,11 @@ Execute o seguinte comando para gerar um requirements.txt atualizado:
 pip freeze > requirements.txt
 ```
 
+## 4.(Opcional) Caso queira gerar a documentação do swagger a partir de json do Insomnia
+
+Execute o seguinte comando:
+
+```shell
+npx insomnia-documenter --config <INSOMNIA JSON> --output <ARQUIVO DE SAÍDA>
+```
+
