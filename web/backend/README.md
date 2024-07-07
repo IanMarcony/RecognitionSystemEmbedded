@@ -17,6 +17,18 @@ Execute o seguinte comando para instalar os pacotes necessários do projeto:
 pip install -r .\requirements.txt
 ```
 
+## 3.Execute o backend e o websocket
+
+Execute o backend Flask e websocket server em terminais separados
+
+- Executando o Flask:
+    ```shell
+    flask --app main.py run --debug
+    ```
+- Executando o WebSocketServer:
+    ```shell
+     python .\app\modules\espcam\infra\websocket\receive_stream.py
+    ```
 ## 3.(Opcional) Caso queira atualizar o requirements.txt
 
 Execute o seguinte comando para gerar um requirements.txt atualizado:

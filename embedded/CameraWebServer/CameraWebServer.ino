@@ -1,38 +1,39 @@
 #include "esp_camera.h"
 #include <WiFi.h>
 #include <Stepper.h>
+#include <ArduinoWebsockets.h>
+#include "esp_timer.h"
+#include "img_converters.h"
+#include "Arduino.h"
+#include "fb_gfx.h"
+#include "soc/soc.h" //disable brownout problems
+#include "soc/rtc_cntl_reg.h"  //disable brownout problems
+#include "esp_http_server.h"
+#include "driver/gpio.h"
 
-//
-// WARNING!!! PSRAM IC required for UXGA resolution and high JPEG quality
-//            Ensure ESP32 Wrover Module or other board with PSRAM is selected
-//            Partial images will be transmitted if image exceeds buffer size
-//
-//            You must select partition scheme from the board menu that has at least 3MB APP space.
-//            Face Recognition is DISABLED for ESP32 and ESP32-S2, because it takes up from 15
-//            seconds to process single frame. Face Detection is ENABLED if PSRAM is enabled as well
-
-// ===================
-// Select camera model
-// ===================
-//#define CAMERA_MODEL_WROVER_KIT // Has PSRAM
-//#define CAMERA_MODEL_ESP_EYE  // Has PSRAM
-//#define CAMERA_MODEL_ESP32S3_EYE // Has PSRAM
-//#define CAMERA_MODEL_M5STACK_PSRAM // Has PSRAM
-//#define CAMERA_MODEL_M5STACK_V2_PSRAM // M5Camera version B Has PSRAM
-//#define CAMERA_MODEL_M5STACK_WIDE // Has PSRAM
-//#define CAMERA_MODEL_M5STACK_ESP32CAM // No PSRAM
-//#define CAMERA_MODEL_M5STACK_UNITCAM // No PSRAM
-//#define CAMERA_MODEL_M5STACK_CAMS3_UNIT  // Has PSRAM
 #define CAMERA_MODEL_AI_THINKER  // Has PSRAM
-//#define CAMERA_MODEL_TTGO_T_JOURNAL // No PSRAM
-//#define CAMERA_MODEL_XIAO_ESP32S3 // Has PSRAM
-// ** Espressif Internal Boards **
-//#define CAMERA_MODEL_ESP32_CAM_BOARD
-//#define CAMERA_MODEL_ESP32S2_CAM_BOARD
-//#define CAMERA_MODEL_ESP32S3_CAM_LCD
-//#define CAMERA_MODEL_DFRobot_FireBeetle2_ESP32S3 // Has PSRAM
-//#define CAMERA_MODEL_DFRobot_Romeo_ESP32S3 // Has PSRAM
-#include "camera_pins.h"
+
+#define PWDN_GPIO_NUM  32
+#define RESET_GPIO_NUM -1
+#define XCLK_GPIO_NUM  0
+#define SIOD_GPIO_NUM  26
+#define SIOC_GPIO_NUM  27
+
+#define Y9_GPIO_NUM    35
+#define Y8_GPIO_NUM    34
+#define Y7_GPIO_NUM    39
+#define Y6_GPIO_NUM    36
+#define Y5_GPIO_NUM    21
+#define Y4_GPIO_NUM    19
+#define Y3_GPIO_NUM    18
+#define Y2_GPIO_NUM    5
+#define VSYNC_GPIO_NUM 25
+#define HREF_GPIO_NUM  23
+#define PCLK_GPIO_NUM  22
+
+// 4 for flash led or 33 for normal led
+#define LED_GPIO_NUM   4
+
 
 // ===========================
 // Enter your WiFi credentials
@@ -40,7 +41,24 @@
 const char* ssid = "MEI";
 const char* password = "205M20E15I";
 
-void startCameraServer();
+const char* websockets_server_host = "192.168.1.203"; //CHANGE HERE
+const uint16_t websockets_server_port = 3001; // OPTIONAL CHANGE
+
+using namespace websockets;
+WebsocketsClient client;
+
+camera_fb_t * fb = NULL;
+size_t _jpg_buf_len = 0;
+uint8_t * _jpg_buf = NULL;
+uint8_t state = 0;
+
+void onMessageCallback(WebsocketsMessage message) {
+  Serial.print("Got Message: ");
+  Serial.println(message.data());
+}
+
+
+void startCameraServerEmb();
 void setupLedFlash(int pin);
 
 // ================
@@ -69,10 +87,11 @@ Stepper myStepper(stepsPerRevolution,
                   PIN_4_TO_STEP_MOTOR);
 
 unsigned long motionDetectedTime = 0;
-const unsigned long motorRunDuration = 10*1000; // 10 seconds
+const unsigned long motorRunDuration = 15*1000; // 10 seconds
 int isAbleToDetectMotion = 1;
 
-void setup() {
+void setup() { 
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println();
@@ -104,7 +123,7 @@ void setup() {
   config.pin_sccb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 20000000;
+  config.xclk_freq_hz = 10000000;
   config.frame_size = FRAMESIZE_UXGA;
   config.pixel_format = PIXFORMAT_JPEG;  // for streaming
   //config.pixel_format = PIXFORMAT_RGB565; // for face detection/recognition
@@ -113,8 +132,6 @@ void setup() {
   config.jpeg_quality = 12;
   config.fb_count = 1;
 
-  // if PSRAM IC present, init with UXGA resolution and higher JPEG quality
-  //                      for larger pre-allocated frame buffer.
   if (config.pixel_format == PIXFORMAT_JPEG) {
     if (psramFound()) {
       config.jpeg_quality = 10;
@@ -125,27 +142,15 @@ void setup() {
       config.frame_size = FRAMESIZE_SVGA;
       config.fb_location = CAMERA_FB_IN_DRAM;
     }
-  } else {
-    // Best option for face detection/recognition
-    config.frame_size = FRAMESIZE_240X240;
-#if CONFIG_IDF_TARGET_ESP32S3
-    config.fb_count = 2;
-#endif
   }
-
-#if defined(CAMERA_MODEL_ESP_EYE)
-  pinMode(13, INPUT_PULLUP);
-  pinMode(14, INPUT_PULLUP);
-#endif
 
   // camera init
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
-    Serial.printf("Camera init failed with error 0x%x", err);
+    Serial.printf("camera init FAIL: 0x%x", err);
     return;
   }
-
-  sensor_t* s = esp_camera_sensor_get();
+  sensor_t * s = esp_camera_sensor_get();
   // initial sensors are flipped vertically and colors are a bit saturated
   if (s->id.PID == OV3660_PID) {
     s->set_vflip(s, 1);        // flip it back
@@ -156,15 +161,6 @@ void setup() {
   if (config.pixel_format == PIXFORMAT_JPEG) {
     s->set_framesize(s, FRAMESIZE_QVGA);
   }
-
-#if defined(CAMERA_MODEL_M5STACK_WIDE) || defined(CAMERA_MODEL_M5STACK_ESP32CAM)
-  s->set_vflip(s, 1);
-  s->set_hmirror(s, 1);
-#endif
-
-#if defined(CAMERA_MODEL_ESP32S3_EYE)
-  s->set_vflip(s, 1);
-#endif
 
 // Setup LED FLash if LED pin is defined in camera_pins.h
 #if defined(LED_GPIO_NUM)
@@ -180,39 +176,67 @@ void setup() {
   }
   Serial.println("");
   Serial.println("WiFi connected");
+  client.onMessage(onMessageCallback);
+  bool connected = client.connect(websockets_server_host, websockets_server_port, "/");
+  if (!connected) {
+    Serial.println("WS connect failed!");
+    Serial.println(WiFi.localIP());
+    state = 3;
+    return;
+  }
+  if (state == 3) {
+    return;
+  }
 
-  startCameraServer();
-
-  Serial.print("Camera Ready! Use 'http://");
-  Serial.print(WiFi.localIP());
-  Serial.println("' to connect");
+  Serial.println("WS OK");
+  client.send("hello from ESP32 camera stream!");
 }
 
 void loop() {
+   if (client.available()) {
+    camera_fb_t *fb = esp_camera_fb_get();
+    if (!fb) {
+      Serial.println("img capture failed");
+      esp_camera_fb_return(fb);
+      ESP.restart();
+    }
+    client.sendBinary((const char*) fb->buf, fb->len);
+    Serial.println("image sent");
+    esp_camera_fb_return(fb);
+    client.poll();
+  } else {
+    bool connected = client.connect(websockets_server_host, websockets_server_port, "/");
+    Serial.print("Retry Connection result = ");
+    Serial.print(connected);
+    Serial.println(" ");
+  }
+
   unsigned long currentTime = millis();
 
   if(isAbleToDetectMotion==1){
     pinStateCurrent = digitalRead(PIN_TO_SENSOR_PRESENCE);
-    Serial.print("pinStateCurrent = ");
-    Serial.print(pinStateCurrent);
-    Serial.println("");
+    //Serial.print("pinStateCurrent = ");
+    //Serial.print(pinStateCurrent);
+    //Serial.println("");
 
     if (pinStateCurrent == HIGH) { // Detect motion
-      Serial.println("Motion detected!");
+      //Serial.println("Motion detected!");
       motionDetectedTime = currentTime; // Record the time motion was detected
     }
   }
 
 
   if (currentTime - motionDetectedTime < motorRunDuration) {
-    Serial.println("Rotating motor!");
+    //Serial.println("Rotating motor!");
     myStepper.step(stepsPerRevolution / 10); // Rotate 36 degrees every loop iteration (to make full revolution in ~1 second)
     isAbleToDetectMotion = 0;
   } else {
     isAbleToDetectMotion = 1;
-    Serial.println("Stop the motor!");
+    //Serial.println("Stop the motor!");
     myStepper.step(0); // Stop the motor
   }
 
   delay(100); // Small delay to reduce noise and debounce
 }
+
+

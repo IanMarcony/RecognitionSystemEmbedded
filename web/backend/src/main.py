@@ -1,7 +1,7 @@
-from app import create_app
-from app.db import conn_db
 from flask_migrate import Migrate
 from flask_cors import CORS
+from app import create_app
+from app.db import conn_db
 
 app = create_app()
 db = conn_db()
@@ -18,4 +18,4 @@ def add_headers(response):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, threaded=True)
