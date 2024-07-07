@@ -13,4 +13,4 @@ class LogsAuditoria(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
-        return f'<LogsAuditoria {self.name}>'
+        return f'<LogsAuditoria {self.id}>'
