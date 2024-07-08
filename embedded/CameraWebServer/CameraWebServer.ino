@@ -188,6 +188,8 @@ void setup() {
   }
   Serial.println("");
   Serial.println("WiFi connected");
+  // Setting Mqtt Client
+  clientMqtt.setServer(mqtt_server, mqtt_port);
   client.onMessage(onMessageCallback);
   bool connected = client.connect(websockets_server_host, websockets_server_port, "/");
   if (!connected) {
@@ -203,8 +205,6 @@ void setup() {
   Serial.println("WS OK");
   client.send("hello from ESP32 camera stream!");
 
-  // Setting Mqtt Client
-  clientMqtt.setServer(mqtt_server, mqtt_port);
 
 }
 
