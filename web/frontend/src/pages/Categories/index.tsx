@@ -1,27 +1,47 @@
-import { Button, Card, Modal } from "react-bootstrap";
+import { Button, Card } from "react-bootstrap";
 import "./styles.scss";
 import CategoriesTable from "../../components/Tables/CategoriesTable";
 import CategoryService from "../../services/category.service";
 import { useEffect, useState } from "react";
 import { CategoryBase } from "../../models/category.interface";
 import CreateCategoryModal from "../../components/Modals/CreateCategoryModal";
+import { useLoader } from "../../hooks/useLoader";
 
 const Categories = () => {
   const [categories, setCategories] = useState<CategoryBase[]>([]);
   const [showCreateCategoryModal, setShowCreateCategoryModal] = useState(false);
 
+  const { setIsLoading } = useLoader();
+
   const getCategories = async () => {
     try {
+      setIsLoading(true);
       const data = await CategoryService.getAll();
       setCategories([...data]);
     } catch (error) {
       console.error(error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     getCategories();
   }, []);
+
+  const onClickDelete = async (index: number) => {
+    try {
+      setIsLoading(true);
+      await CategoryService.delete(categories[index].id);
+      getCategories();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onClickEdit = (index: number) => {};
 
   return (
     <div className="content mh-100">
@@ -37,13 +57,23 @@ const Categories = () => {
           </Button>
         </Card.Header>
 
-        <CategoriesTable categories={categories} />
+        <CategoriesTable
+          categories={categories}
+          onClickEdit={onClickEdit}
+          onClickDelete={onClickDelete}
+        />
       </Card>
-      <CreateCategoryModal
-        onHide={() => setShowCreateCategoryModal(false)}
-        onSave={() => getCategories()}
-        show={showCreateCategoryModal}
-      />
+      {showCreateCategoryModal && (
+        <CreateCategoryModal
+          onHide={() => {
+            setShowCreateCategoryModal(false);
+          }}
+          onSave={() => {
+            getCategories();
+          }}
+          show={showCreateCategoryModal}
+        />
+      )}
     </div>
   );
 };

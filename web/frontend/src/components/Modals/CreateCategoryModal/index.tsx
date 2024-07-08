@@ -1,21 +1,23 @@
-import { useState } from "react";
-import { Button, Modal, Form } from "react-bootstrap";
+import { useEffect, useState } from "react";
+import { Button, Modal, Form, Spinner } from "react-bootstrap";
 import { CategoryCreate } from "../../../models/category.interface";
 import CategoryService from "../../../services/category.service";
 
 const CreateCategoryModal: React.FC<{
   onHide: () => void;
-  show: boolean;
   onSave: () => void;
-}> = (props) => {
+  show: boolean;
+}> = ({ onHide, onSave, show }) => {
   const [category, setCategory] = useState<CategoryCreate>({
     name: "",
     description: "",
   });
 
   const [validated, setValidated] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleSave = (event: React.FormEvent<HTMLFormElement>) => {
+    setLoading(true);
     event.preventDefault();
     event.stopPropagation();
     const form = event.currentTarget;
@@ -30,16 +32,27 @@ const CreateCategoryModal: React.FC<{
   const createCategory = async () => {
     try {
       await CategoryService.create({ ...category });
-      props.onHide();
-      props.onSave();
+      onHide();
+      onSave();
     } catch (error) {
       console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    return () => {
+      setCategory({
+        name: "",
+        description: "",
+      });
+    };
+  }, []);
+
   return (
     <Modal
-      {...props}
+      show={show}
       size="lg"
       aria-labelledby="contained-modal-title-vcenter"
       centered
@@ -80,11 +93,20 @@ const CreateCategoryModal: React.FC<{
           </Form.Group>
 
           <Modal.Footer>
-            <Button variant="secondary" onClick={props.onHide}>
+            <Button variant="secondary" onClick={() => onHide()}>
               Cancel
             </Button>
             <Button variant="success" type="submit">
-              Save
+              {loading && (
+                <Spinner
+                  as="span"
+                  animation="border"
+                  size="sm"
+                  role="status"
+                  aria-hidden="true"
+                />
+              )}
+              {!loading && "Save"}
             </Button>
           </Modal.Footer>
         </Form>
