@@ -11,6 +11,11 @@ class ProductsController:
         return jsonify([{"id": product.id,
                         "name": product.name,
                         "imagem": product.imagem,
+                        "category": {
+                            "id": product.category.id,
+                            "name": product.category.name,
+                            "description": product.category.description,
+                        },
                         "description": product.description,
                         "created_at": product.created_at} for product in products])
 
@@ -19,6 +24,11 @@ class ProductsController:
         return jsonify({"id": product.id,
                         "name": product.name,
                         "imagem": product.imagem,
+                        "category": {
+                            "id": product.category.id,
+                            "name": product.category.name,
+                            "description": product.category.description,
+                        },
                         "description": product.description,
                         "created_at": product.created_at})
 
