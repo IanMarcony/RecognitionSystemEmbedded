@@ -13,6 +13,7 @@ const ProductsTable: React.FC<{
           <th>Id</th>
           <th>Name</th>
           <th>Image</th>
+          <th>Category</th>
           <th>Description</th>
           <th style={{ width: "130px" }}>Actions</th>
         </tr>
@@ -23,6 +24,7 @@ const ProductsTable: React.FC<{
             <td> {obj.id} </td>
             <td> {obj.name} </td>
             <td> {obj.imagem} </td>
+            <td> {obj.category.name} </td>
             <td> {obj.description} </td>
             <td>
               <Button

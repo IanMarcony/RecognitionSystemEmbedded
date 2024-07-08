@@ -1,3 +1,5 @@
+import { CategoryBase } from "./category.interface";
+
 interface ProductBase {
   id: number;
   name: string;
@@ -5,6 +7,7 @@ interface ProductBase {
   description?: string;
   createdAt?: Date;
   deletedAt?: Date;
+  category: CategoryBase;
 }
 
 interface ProductCreate {

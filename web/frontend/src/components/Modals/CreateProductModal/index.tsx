@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
-import { Button, Modal, Form, Spinner } from "react-bootstrap";
+import { Button, Modal, Form, Spinner, FloatingLabel } from "react-bootstrap";
 import { ProductCreate } from "../../../models/product.interface";
 import ProductService from "../../../services/products.service";
+import { CategoryBase } from "../../../models/category.interface";
+import { useLoader } from "../../../hooks/useLoader";
+import CategoryService from "../../../services/category.service";
 
 const CreateProductModal: React.FC<{
   onHide: () => void;
@@ -14,8 +17,12 @@ const CreateProductModal: React.FC<{
     imagem: "",
   });
 
+  const { setIsLoading, isVisible } = useLoader();
+
   const [validated, setValidated] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState<CategoryBase[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState(0);
 
   const handleSave = (event: React.FormEvent<HTMLFormElement>) => {
     setLoading(true);
@@ -33,7 +40,10 @@ const CreateProductModal: React.FC<{
 
   const createProduct = async () => {
     try {
-      await ProductService.create({ ...product });
+      await ProductService.create({
+        ...product,
+        id_category: categories[selectedCategory].id,
+      });
       onHide();
       onSave();
     } catch (error) {
@@ -43,7 +53,20 @@ const CreateProductModal: React.FC<{
     }
   };
 
+  const getCategories = async () => {
+    try {
+      setIsLoading(true);
+      const data = await CategoryService.getAll();
+      setCategories([...data]);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
+    getCategories();
     return () => {
       setProduct({
         name: "",
@@ -54,7 +77,9 @@ const CreateProductModal: React.FC<{
     };
   }, []);
 
-  return (
+  return isVisible ? (
+    <></>
+  ) : (
     <Modal
       show={true}
       size="lg"
@@ -84,19 +109,30 @@ const CreateProductModal: React.FC<{
             </Form.Control.Feedback>
           </Form.Group>
 
-          <Form.Group className="mb-3" controlId="formName">
+          <Form.Group controlId="formFile" className="mb-3">
             <Form.Label>Image</Form.Label>
-            <Form.Control
-              placeholder="Enter Image"
-              value={product.imagem}
-              onChange={(event) =>
-                setProduct({ ...product, imagem: event.target.value })
-              }
-              required
-            />
+            <Form.Control type="file" required accept="image/*" />
             <Form.Control.Feedback type="invalid">
               Please choose a image
             </Form.Control.Feedback>
+          </Form.Group>
+
+          <Form.Group controlId="formCategory" className="mb-3">
+            <Form.Label>Category</Form.Label>
+            <Form.Select
+              aria-label="Categories"
+              onChange={(event) =>
+                setSelectedCategory(Number(event.target.value))
+              }
+              value={selectedCategory}
+              required
+            >
+              {categories.map((category, i) => (
+                <option key={i} value={i}>
+                  {category.name}
+                </option>
+              ))}
+            </Form.Select>
           </Form.Group>
 
           <Form.Group className="mb-3" controlId="formDescription">

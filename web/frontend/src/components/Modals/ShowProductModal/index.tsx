@@ -4,6 +4,8 @@ import { useLoader } from "../../../hooks/useLoader";
 import { ProductBase } from "../../../models/product.interface";
 import { useProduct } from "../../../hooks/useProduct";
 import ProductService from "../../../services/products.service";
+import { CategoryBase } from "../../../models/category.interface";
+import CategoryService from "../../../services/category.service";
 
 const ShowProductModal: React.FC<{
   onHide: () => void;
@@ -14,7 +16,14 @@ const ShowProductModal: React.FC<{
     description: "",
     id: 0,
     imagem: "",
+    category: {
+      id: 0,
+      name: "",
+      description: "",
+    },
   });
+  const [categories, setCategories] = useState<CategoryBase[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState(0);
 
   const [validated, setValidated] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -33,10 +42,25 @@ const ShowProductModal: React.FC<{
       return;
     }
     setValidated(true);
-    saveCategory();
+    saveProduct();
   };
 
-  const saveCategory = async () => {
+  const getCategories = async () => {
+    setIsLoading(true);
+    try {
+      const data = await CategoryService.getAll();
+      setCategories([...data]);
+      setSelectedCategory(
+        data.findIndex((category) => category.id === product.category.id),
+      );
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveProduct = async () => {
     try {
       await ProductService.update(product);
       onHide();
@@ -61,15 +85,11 @@ const ShowProductModal: React.FC<{
   };
 
   useEffect(() => {
+    getCategories();
+  }, [product.id]);
+
+  useEffect(() => {
     getProduct();
-    return () => {
-      setProduct({
-        name: "",
-        description: "",
-        id: 0,
-        imagem: "",
-      });
-    };
   }, []);
 
   return isVisible ? (
@@ -117,6 +137,25 @@ const ShowProductModal: React.FC<{
             <Form.Control.Feedback type="invalid">
               Please choose a image
             </Form.Control.Feedback>
+          </Form.Group>
+
+          <Form.Group controlId="formCategory" className="mb-3">
+            <Form.Label>Category</Form.Label>
+            <Form.Select
+              aria-label="Categories"
+              onChange={(event) =>
+                setSelectedCategory(Number(event.target.value))
+              }
+              value={selectedCategory}
+              required
+              disabled
+            >
+              {categories.map((category, i) => (
+                <option key={i} value={i}>
+                  {category.name}
+                </option>
+              ))}
+            </Form.Select>
           </Form.Group>
 
           <Form.Group className="mb-3" controlId="formDescription">
