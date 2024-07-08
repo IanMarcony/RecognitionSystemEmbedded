@@ -23,7 +23,11 @@ const CategoriesTable: React.FC<{
             <td> {obj.name} </td>
             <td> {obj.description} </td>
             <td>
-              <Button variant="success" style={{ marginRight: "10px" }}>
+              <Button
+                variant="success"
+                onClick={() => onClickEdit(index)}
+                style={{ marginRight: "10px" }}
+              >
                 <i className="fas fa-edit"></i>
               </Button>
               <Button variant="danger" onClick={() => onClickDelete(index)}>

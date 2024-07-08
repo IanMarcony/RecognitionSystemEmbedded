@@ -1,21 +1,28 @@
 import { useEffect, useState } from "react";
 import { Button, Modal, Form, Spinner } from "react-bootstrap";
-import { CategoryCreate } from "../../../models/category.interface";
+import { CategoryBase } from "../../../models/category.interface";
 import CategoryService from "../../../services/category.service";
+import { useCategory } from "../../../hooks/useCategory";
+import { useLoader } from "../../../hooks/useLoader";
 
-const CreateCategoryModal: React.FC<{
+const ShowCategoryModal: React.FC<{
   onHide: () => void;
   onSave: () => void;
 }> = ({ onHide, onSave }) => {
-  const [category, setCategory] = useState<CategoryCreate>({
+  const [category, setCategory] = useState<CategoryBase>({
     name: "",
     description: "",
+    id: 0,
   });
 
   const [validated, setValidated] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const { categoryId } = useCategory();
+  const { setIsLoading, isVisible } = useLoader();
+
   const handleSave = (event: React.FormEvent<HTMLFormElement>) => {
+    setLoading(true);
     event.preventDefault();
     event.stopPropagation();
     const form = event.currentTarget;
@@ -25,12 +32,12 @@ const CreateCategoryModal: React.FC<{
       return;
     }
     setValidated(true);
-    createCategory();
+    saveCategory();
   };
 
-  const createCategory = async () => {
+  const saveCategory = async () => {
     try {
-      await CategoryService.create({ ...category });
+      await CategoryService.update(category);
       onHide();
       onSave();
     } catch (error) {
@@ -40,16 +47,32 @@ const CreateCategoryModal: React.FC<{
     }
   };
 
+  const getCategory = async () => {
+    setIsLoading(true);
+    try {
+      const result = await CategoryService.getOne(categoryId!);
+      setCategory({ ...result });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
+    getCategory();
     return () => {
       setCategory({
         name: "",
         description: "",
+        id: 0,
       });
     };
   }, []);
 
-  return (
+  return isVisible ? (
+    <></>
+  ) : (
     <Modal
       show={true}
       size="lg"
@@ -59,7 +82,7 @@ const CreateCategoryModal: React.FC<{
     >
       <Modal.Header closeButton>
         <Modal.Title id="contained-modal-title-vcenter">
-          Create New Category
+          {`Editing ${category.name}`}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
@@ -115,4 +138,4 @@ const CreateCategoryModal: React.FC<{
   );
 };
 
-export default CreateCategoryModal;
+export default ShowCategoryModal;

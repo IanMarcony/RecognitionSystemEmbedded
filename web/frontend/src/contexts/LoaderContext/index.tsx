@@ -3,6 +3,7 @@ import FullScreenLoading from "../../components/FullScreenLoading";
 
 type LoaderContextT = {
   setIsLoading: (status: boolean) => void;
+  isVisible: boolean;
 };
 
 type LoaderContextProvider = {
@@ -22,6 +23,7 @@ export const LoaderProvider: React.FC<LoaderContextProvider> = ({
     setIsLoading: (status) => {
       setIsVisible(status);
     },
+    isVisible: isVisible,
   };
 
   return (

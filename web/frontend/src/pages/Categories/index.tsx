@@ -6,10 +6,15 @@ import { useEffect, useState } from "react";
 import { CategoryBase } from "../../models/category.interface";
 import CreateCategoryModal from "../../components/Modals/CreateCategoryModal";
 import { useLoader } from "../../hooks/useLoader";
+import { useCategory } from "../../hooks/useCategory";
+import { CategoryProvider } from "../../contexts/CategoryContext";
+import ShowCategoryModal from "../../components/Modals/ShowCategoryModal";
 
 const Categories = () => {
   const [categories, setCategories] = useState<CategoryBase[]>([]);
   const [showCreateCategoryModal, setShowCreateCategoryModal] = useState(false);
+
+  const { categoryId, setCategoryId } = useCategory();
 
   const { setIsLoading } = useLoader();
 
@@ -41,7 +46,10 @@ const Categories = () => {
     }
   };
 
-  const onClickEdit = (index: number) => {};
+  const onClickEdit = (index: number) => {
+    setIsLoading(true);
+    setCategoryId(categories[index].id);
+  };
 
   return (
     <div className="content mh-100">
@@ -71,7 +79,17 @@ const Categories = () => {
           onSave={() => {
             getCategories();
           }}
-          show={showCreateCategoryModal}
+        />
+      )}
+
+      {categoryId !== undefined && (
+        <ShowCategoryModal
+          onHide={() => {
+            setCategoryId(undefined);
+          }}
+          onSave={() => {
+            getCategories();
+          }}
         />
       )}
     </div>

@@ -11,7 +11,7 @@ export default abstract class CategoryService {
   }
 
   static async getOne(id: number): Promise<CategoryBase> {
-    const category = (await api.get<CategoryBase>(`/categories/${id}/`)).data;
+    const category = (await api.get<CategoryBase>(`/categories/${id}`)).data;
     return category;
   }
 
@@ -22,7 +22,7 @@ export default abstract class CategoryService {
 
   static async update(category: CategoryBase): Promise<void> {
     await api.put<Pick<CategoryBase, "id">>(
-      `/categories/${category.id}/`,
+      `/categories/${category.id}`,
       category,
     );
   }

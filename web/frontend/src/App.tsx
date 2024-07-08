@@ -4,13 +4,16 @@ import "./assets/styles/app.css";
 import Navbar from "./components/Navbar";
 
 import { LoaderProvider } from "./contexts/LoaderContext";
+import { CategoryProvider } from "./contexts/CategoryContext";
 
 const App = () => {
   return (
     <div className="content-wrapper">
       <LoaderProvider>
-        <Navbar />
-        <Outlet />
+        <CategoryProvider>
+          <Navbar />
+          <Outlet />
+        </CategoryProvider>
       </LoaderProvider>
     </div>
   );
