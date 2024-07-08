@@ -17,11 +17,31 @@ Execute o seguinte comando para instalar os pacotes necessários do projeto:
 pip install -r .\requirements.txt
 ```
 
+## 3.Execute o backend e o websocket
+
+Execute o backend Flask e websocket server em terminais separados
+
+- Executando o Flask:
+    ```shell
+    flask --app main.py run --debug
+    ```
+- Executando o WebSocketServer:
+    ```shell
+     python .\app\modules\espcam\infra\websocket\receive_stream.py
+    ```
 ## 3.(Opcional) Caso queira atualizar o requirements.txt
 
 Execute o seguinte comando para gerar um requirements.txt atualizado:
 
 ```shell
 pip freeze > requirements.txt
+```
+
+## 4.(Opcional) Caso queira gerar a documentação do swagger a partir de json do Insomnia
+
+Execute o seguinte comando:
+
+```shell
+npx insomnia-documenter --config <INSOMNIA JSON> --output <ARQUIVO DE SAÍDA>
 ```
 
