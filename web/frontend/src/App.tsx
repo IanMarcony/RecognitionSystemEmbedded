@@ -5,14 +5,17 @@ import Navbar from "./components/Navbar";
 
 import { LoaderProvider } from "./contexts/LoaderContext";
 import { CategoryProvider } from "./contexts/CategoryContext";
+import { ProductProvider } from "./contexts/ProductContext";
 
 const App = () => {
   return (
     <div className="content-wrapper">
       <LoaderProvider>
         <CategoryProvider>
-          <Navbar />
-          <Outlet />
+          <ProductProvider>
+            <Navbar />
+            <Outlet />
+          </ProductProvider>
         </CategoryProvider>
       </LoaderProvider>
     </div>

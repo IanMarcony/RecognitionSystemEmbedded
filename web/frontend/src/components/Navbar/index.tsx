@@ -8,7 +8,7 @@ const Navbar = () => {
         <Nav className="me-auto">
           <Nav.Link href="/">Dashboard</Nav.Link>
           <Nav.Link href="/categories">Categories</Nav.Link>
-          <Nav.Link href="/objects">Objects</Nav.Link>
+          <Nav.Link href="/products">Products</Nav.Link>
         </Nav>
       </Container>
     </NavBar>
