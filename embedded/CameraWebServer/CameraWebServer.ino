@@ -12,6 +12,7 @@
 #include "esp_http_server.h"
 #include "driver/gpio.h"
 #include <PubSubClient.h>
+#include <ESP32Servo.h>
 
 #define CAMERA_MODEL_AI_THINKER  // Has PSRAM
 
@@ -34,7 +35,7 @@
 #define PCLK_GPIO_NUM  22
 
 // 4 for flash led or 33 for normal led
-#define LED_GPIO_NUM   4
+//#define LED_GPIO_NUM   4
 
 
 // ===========================
@@ -61,7 +62,7 @@ void onMessageCallback(WebsocketsMessage message) {
 
 
 void startCameraServerEmb();
-void setupLedFlash(int pin);
+//void setupLedFlash(int pin);
 
 // ================
 // Presence Sensor
@@ -102,11 +103,24 @@ PubSubClient clientMqtt(espClient);
 const char* mqtt_server = "test.mosquitto.org";
 const int mqtt_port = 1883; // Porta padrão do MQTT
 
+// ================
+// Step Motor
+// ================
+const int servoPin = 4; // Pino do servo motor
+Servo myServo;
+int position = 0;
+
+
 void setup() { 
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println();
+
+  // Servor Motor
+  myServo.attach(servoPin);
+  myServo.write(90); // Posiciona o servo no meio inicialmente
+  Serial.println("Servo configurado");
 
   // Presence Sensor
 
@@ -175,9 +189,9 @@ void setup() {
   }
 
 // Setup LED FLash if LED pin is defined in camera_pins.h
-#if defined(LED_GPIO_NUM)
-  setupLedFlash(LED_GPIO_NUM);
-#endif
+//#if defined(LED_GPIO_NUM)
+//  setupLedFlash(LED_GPIO_NUM);
+//#endif
 
   WiFi.begin(ssid, password);
   WiFi.setSleep(false);
@@ -190,6 +204,9 @@ void setup() {
   Serial.println("WiFi connected");
   // Setting Mqtt Client
   clientMqtt.setServer(mqtt_server, mqtt_port);
+  clientMqtt.setCallback(callback);
+
+  //Client WebSocket
   client.onMessage(onMessageCallback);
   bool connected = client.connect(websockets_server_host, websockets_server_port, "/");
   if (!connected) {
@@ -204,8 +221,6 @@ void setup() {
 
   Serial.println("WS OK");
   client.send("hello from ESP32 camera stream!");
-
-
 }
 
 void loop() {
@@ -276,7 +291,6 @@ void loop() {
   // Sending information to mqtt broker
   clientMqtt.publish("payload/ser/info", jsonBuffer);
 
-
   delay(100); // Small delay to reduce noise and debounce
 }
 
@@ -286,6 +300,7 @@ void reconnect() {
     Serial.print("Tentando conectar ao MQTT...");
     if (clientMqtt.connect("SisEmbRec")) {
       Serial.println("Conectado");
+      clientMqtt.subscribe("payload/ser/servo");
     } else {
       Serial.print("Falha, rc=");
       Serial.print(clientMqtt.state());
@@ -293,5 +308,29 @@ void reconnect() {
       delay(5000);
     }
   }
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  char msg[length + 1];
+  strncpy(msg, (char*)payload, length);
+  msg[length] = '\0';
+  // Parse the JSON message
+  StaticJsonDocument<200> doc;
+  DeserializationError error = deserializeJson(doc, msg);
+
+  if (error) {
+    Serial.print("Erro ao fazer parsing do JSON: ");
+    Serial.println(error.c_str());
+    return;
+  }
+
+  int angle = doc["angle"];
+
+  myServo.write(angle);
+
+  Serial.print("Mensagem recebida [");
+  Serial.print(topic);
+  Serial.print("]: ");
+  Serial.println(msg);
 }
 
