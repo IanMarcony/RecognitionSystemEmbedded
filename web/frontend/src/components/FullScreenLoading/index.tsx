@@ -1,4 +1,4 @@
-import { Container, Modal, Spinner } from "react-bootstrap";
+import { Modal, Spinner } from "react-bootstrap";
 import "./styles.scss";
 
 const FullScreenLoading = () => {

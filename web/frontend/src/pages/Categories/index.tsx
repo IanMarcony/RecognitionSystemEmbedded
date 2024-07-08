@@ -7,7 +7,6 @@ import { CategoryBase } from "../../models/category.interface";
 import CreateCategoryModal from "../../components/Modals/CreateCategoryModal";
 import { useLoader } from "../../hooks/useLoader";
 import { useCategory } from "../../hooks/useCategory";
-import { CategoryProvider } from "../../contexts/CategoryContext";
 import ShowCategoryModal from "../../components/Modals/ShowCategoryModal";
 
 const Categories = () => {
