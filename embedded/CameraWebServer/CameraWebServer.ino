@@ -12,7 +12,6 @@
 #include "esp_http_server.h"
 #include "driver/gpio.h"
 #include <PubSubClient.h>
-#include <ESP32Servo.h>
 
 #define CAMERA_MODEL_AI_THINKER  // Has PSRAM
 
@@ -35,7 +34,7 @@
 #define PCLK_GPIO_NUM  22
 
 // 4 for flash led or 33 for normal led
-//#define LED_GPIO_NUM   4
+#define LED_GPIO_NUM   4
 
 
 // ===========================
@@ -62,7 +61,7 @@ void onMessageCallback(WebsocketsMessage message) {
 
 
 void startCameraServerEmb();
-//void setupLedFlash(int pin);
+void setupLedFlash(int pin);
 
 // ================
 // Presence Sensor
@@ -103,24 +102,11 @@ PubSubClient clientMqtt(espClient);
 const char* mqtt_server = "test.mosquitto.org";
 const int mqtt_port = 1883; // Porta padrão do MQTT
 
-// ================
-// Step Motor
-// ================
-const int servoPin = 4; // Pino do servo motor
-Servo myServo;
-int position = 0;
-
-
 void setup() { 
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println();
-
-  // Servor Motor
-  myServo.attach(servoPin);
-  myServo.write(90); // Posiciona o servo no meio inicialmente
-  Serial.println("Servo configurado");
 
   // Presence Sensor
 
@@ -151,24 +137,12 @@ void setup() {
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 10000000;
   config.frame_size = FRAMESIZE_UXGA;
-  config.pixel_format = PIXFORMAT_JPEG;  // for streaming
-  //config.pixel_format = PIXFORMAT_RGB565; // for face detection/recognition
+  //config.pixel_format = PIXFORMAT_JPEG;  // for streaming
+  config.pixel_format = PIXFORMAT_RGB565; // for face detection/recognition
   config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
   config.fb_location = CAMERA_FB_IN_PSRAM;
   config.jpeg_quality = 12;
-  config.fb_count = 1;
-
-  if (config.pixel_format == PIXFORMAT_JPEG) {
-    if (psramFound()) {
-      config.jpeg_quality = 10;
-      config.fb_count = 2;
-      config.grab_mode = CAMERA_GRAB_LATEST;
-    } else {
-      // Limit the frame size when PSRAM is not available
-      config.frame_size = FRAMESIZE_SVGA;
-      config.fb_location = CAMERA_FB_IN_DRAM;
-    }
-  }
+  config.fb_count = 2;
 
   // camera init
   esp_err_t err = esp_camera_init(&config);
@@ -189,9 +163,9 @@ void setup() {
   }
 
 // Setup LED FLash if LED pin is defined in camera_pins.h
-//#if defined(LED_GPIO_NUM)
-//  setupLedFlash(LED_GPIO_NUM);
-//#endif
+#if defined(LED_GPIO_NUM)
+  setupLedFlash(LED_GPIO_NUM);
+#endif
 
   WiFi.begin(ssid, password);
   WiFi.setSleep(false);
@@ -204,7 +178,6 @@ void setup() {
   Serial.println("WiFi connected");
   // Setting Mqtt Client
   clientMqtt.setServer(mqtt_server, mqtt_port);
-  clientMqtt.setCallback(callback);
 
   //Client WebSocket
   client.onMessage(onMessageCallback);
@@ -290,8 +263,6 @@ void loop() {
 
   // Sending information to mqtt broker
   clientMqtt.publish("payload/ser/info", jsonBuffer);
-
-  delay(100); // Small delay to reduce noise and debounce
 }
 
 
@@ -310,27 +281,4 @@ void reconnect() {
   }
 }
 
-void callback(char* topic, byte* payload, unsigned int length) {
-  char msg[length + 1];
-  strncpy(msg, (char*)payload, length);
-  msg[length] = '\0';
-  // Parse the JSON message
-  StaticJsonDocument<200> doc;
-  DeserializationError error = deserializeJson(doc, msg);
-
-  if (error) {
-    Serial.print("Erro ao fazer parsing do JSON: ");
-    Serial.println(error.c_str());
-    return;
-  }
-
-  int angle = doc["angle"];
-
-  myServo.write(angle);
-
-  Serial.print("Mensagem recebida [");
-  Serial.print(topic);
-  Serial.print("]: ");
-  Serial.println(msg);
-}
 
