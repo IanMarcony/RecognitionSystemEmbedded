@@ -135,13 +135,13 @@ void setup() {
   config.pin_sccb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 10000000;
+  config.xclk_freq_hz = 10000000; // Reduzir a frequência para 10MHz
   config.frame_size = FRAMESIZE_UXGA;
-  //config.pixel_format = PIXFORMAT_JPEG;  // for streaming
-  config.pixel_format = PIXFORMAT_RGB565; // for face detection/recognition
+  config.pixel_format = PIXFORMAT_JPEG;  // for streaming
+  //config.pixel_format = PIXFORMAT_RGB565; // for face detection/recognition
   config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
   config.fb_location = CAMERA_FB_IN_PSRAM;
-  config.jpeg_quality = 12;
+  config.jpeg_quality = 15;
   config.fb_count = 2;
 
   // camera init
@@ -151,16 +151,30 @@ void setup() {
     return;
   }
   sensor_t * s = esp_camera_sensor_get();
-  // initial sensors are flipped vertically and colors are a bit saturated
-  if (s->id.PID == OV3660_PID) {
-    s->set_vflip(s, 1);        // flip it back
-    s->set_brightness(s, 1);   // up the brightness just a bit
-    s->set_saturation(s, -2);  // lower the saturation
-  }
-  // drop down frame size for higher initial frame rate
-  if (config.pixel_format == PIXFORMAT_JPEG) {
-    s->set_framesize(s, FRAMESIZE_QVGA);
-  }
+  
+  // Configurações específicas do sensor (ajustes opcionais)
+  s->set_brightness(s, 1);    // Ajusta o brilho (varia de -2 a 2)
+  s->set_contrast(s, 1);      // Ajusta o contraste (varia de -2 a 2)
+  s->set_saturation(s, -2);   // Ajusta a saturação (varia de -2 a 2)
+  s->set_vflip(s, 1);         // Inverte verticalmente a imagem, se necessário
+  s->set_special_effect(s, 0); // Efeito especial (0 - sem efeito)
+  s->set_whitebal(s, 1);      // Ativa balanço de branco
+  s->set_awb_gain(s, 1);      // Ativa ganho automático do balanço de branco
+  s->set_wb_mode(s, 0);       // Define o modo de balanço de branco
+  s->set_exposure_ctrl(s, 1); // Controle de exposição
+  s->set_aec2(s, 1);          // Ativa o controle de exposição automático
+  s->set_ae_level(s, 0);      // Define o nível de exposição (varia de -2 a 2)
+  s->set_aec_value(s, 300);   // Define o valor de exposição (varia de 0 a 1200)
+  s->set_gain_ctrl(s, 1);     // Controle de ganho
+  s->set_agc_gain(s, 0);      // Ganho automático
+  s->set_gainceiling(s, (gainceiling_t)0); // Define o teto do ganho
+  s->set_bpc(s, 0);           // Correção de pixel defeituoso
+  s->set_wpc(s, 1);           // Correção de pixel branco
+  s->set_raw_gma(s, 1);       // Correção gama
+  s->set_lenc(s, 1);          // Correção de lente
+  s->set_hmirror(s, 0);       // Espelha a imagem horizontalmente
+  s->set_dcw(s, 1);           // Downsize EN
+  s->set_colorbar(s, 0);      // Barra de cores para teste
 
 // Setup LED FLash if LED pin is defined in camera_pins.h
 #if defined(LED_GPIO_NUM)
@@ -237,7 +251,7 @@ void loop() {
     //Serial.println("");
 
     if (pinStateCurrent == HIGH) { // Detect motion
-      //Serial.println("Motion detected!");
+      Serial.println("Motion detected!");
       motionDetectedTime = currentTime; // Record the time motion was detected      
     }
   }
