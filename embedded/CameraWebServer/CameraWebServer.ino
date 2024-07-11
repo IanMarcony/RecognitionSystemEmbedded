@@ -271,7 +271,6 @@ void reconnect() {
     Serial.print("Tentando conectar ao MQTT...");
     if (clientMqtt.connect("SisEmbRec")) {
       Serial.println("Conectado");
-      clientMqtt.subscribe("payload/ser/servo");
     } else {
       Serial.print("Falha, rc=");
       Serial.print(clientMqtt.state());
