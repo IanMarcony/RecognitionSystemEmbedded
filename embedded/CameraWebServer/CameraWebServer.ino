@@ -44,7 +44,7 @@ const char* ssid = "MEI";
 const char* password = "205M20E15I";
 
 const char* websockets_server_host = "192.168.1.203"; //CHANGE HERE
-const uint16_t websockets_server_port = 3001; // OPTIONAL CHANGE
+const uint16_t websockets_server_port = 5000; // OPTIONAL CHANGE
 
 using namespace websockets;
 WebsocketsClient client;
@@ -138,7 +138,6 @@ void setup() {
   config.xclk_freq_hz = 10000000; // Reduzir a frequência para 10MHz
   config.frame_size = FRAMESIZE_UXGA;
   config.pixel_format = PIXFORMAT_JPEG;  // for streaming
-  //config.pixel_format = PIXFORMAT_RGB565; // for face detection/recognition
   config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
   config.fb_location = CAMERA_FB_IN_PSRAM;
   config.jpeg_quality = 15;
@@ -195,7 +194,7 @@ void setup() {
 
   //Client WebSocket
   client.onMessage(onMessageCallback);
-  bool connected = client.connect(websockets_server_host, websockets_server_port, "/");
+  bool connected = client.connect(websockets_server_host, websockets_server_port, "/socket.io/?transport=websocket");
   if (!connected) {
     Serial.println("WS connect failed!");
     Serial.println(WiFi.localIP());
@@ -233,7 +232,7 @@ void loop() {
     esp_camera_fb_return(fb);
     client.poll();
   } else {
-    bool connected = client.connect(websockets_server_host, websockets_server_port, "/");
+    bool connected = client.connect(websockets_server_host, websockets_server_port, "/socket.io/?transport=websocket");
     doc["esp_connected_ws"]=connected;
     doc["camera"]=0;
     Serial.print("Retry Connection result = ");
