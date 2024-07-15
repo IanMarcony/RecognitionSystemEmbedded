@@ -5,6 +5,7 @@ import asyncio
 from io import BytesIO
 from ultralytics import YOLO
 from PIL import Image, UnidentifiedImageError
+import numpy as np
 
 model = YOLO('./bestv8.pt')
 print(model.names)
@@ -32,7 +33,16 @@ async def handle_connection(websocket, path):
                             image_bytes = f.read()
                         websockets.broadcast(connected_clients, binascii.b2a_base64(image_bytes).decode('utf-8'))
                         results = model.track("./camera/image.jpg", classes=0, conf=0.80, imgsz=640)
-                        print(results)
+                        for result in results:
+                            # Extrair a classe do objeto
+                            box =  result.boxes
+                            class_id = box.cls.int().numpy()
+                            class_id = np.array(class_id)
+                            
+                            # Extrair o nome da classe do modelo
+                            class_id = class_id[0] if len(class_id)>0 else -1
+
+                            class_name = model.names[int(class_id)] if class_id>=0 else ""  
     except websockets.exceptions.ConnectionClosed:
         print('Erro')
     finally:

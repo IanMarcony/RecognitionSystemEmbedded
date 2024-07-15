@@ -5,6 +5,7 @@
 
 import cv2
 from ultralytics import YOLO
+import numpy as np
 
 model = YOLO('../websocket/bestv8.pt')
 print(model.names)
@@ -16,6 +17,17 @@ while True:
     success, frame = webcamera.read()
     
     results = model.track(frame, classes=0, conf=0.80, imgsz=480)
+    for result in results:
+        # Extrair a classe do objeto
+        box =  result.boxes
+        class_id = box.cls.int().numpy()
+        class_id = np.array(class_id)
+        
+        # Extrair o nome da classe do modelo
+        class_id = class_id[0] if len(class_id)>0 else -1
+
+        class_name = model.names[int(class_id)] if class_id>=0 else ""        
+        print("OI: ", class_name)
     cv2.putText(frame, f"Total: {len(results[0].boxes)}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
     cv2.imshow("Live Camera", results[0].plot())
 
