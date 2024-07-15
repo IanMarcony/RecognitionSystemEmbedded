@@ -1,0 +1,11 @@
+.status-circle {
+  width: 10px;
+  height: 10px;
+  background-color: var(--bs-gray-600);
+  display: block;
+  border-radius: 5px;
+
+  &.active {
+    background-color: var(--bs-success);
+  }
+}
