@@ -1,0 +1,12 @@
+FROM python:3.12
+
+WORKDIR /app
+
+COPY src/requirements.txt requirements.txt
+
+RUN pip install -r ./requirements.txt
+
+COPY src/websocket .
+COPY src/camera ./camera
+
+CMD ["python" ,"-u","receive_stream.py"]

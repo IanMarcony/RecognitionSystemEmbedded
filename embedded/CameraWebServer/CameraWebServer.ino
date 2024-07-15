@@ -12,7 +12,7 @@
 #include "esp_http_server.h"
 #include "driver/gpio.h"
 #include <PubSubClient.h>
-#include <ESP32Servo.h>
+#include "base64.h"
 
 #define CAMERA_MODEL_AI_THINKER  // Has PSRAM
 
@@ -35,7 +35,7 @@
 #define PCLK_GPIO_NUM  22
 
 // 4 for flash led or 33 for normal led
-//#define LED_GPIO_NUM   4
+#define LED_GPIO_NUM   4
 
 
 // ===========================
@@ -44,8 +44,10 @@
 const char* ssid = "MEI";
 const char* password = "205M20E15I";
 
-const char* websockets_server_host = "192.168.1.203"; //CHANGE HERE
-const uint16_t websockets_server_port = 3001; // OPTIONAL CHANGE
+// const char* websockets_server_host = "192.168.1.203"; //CHANGE HERE
+const char* websockets_server_host = "89.116.74.170"; //CHANGE HERE
+const char* websockets_server_path = "/socket.io/?transport=websocket"; //CHANGE HERE
+const uint16_t websockets_server_port = 5000; // OPTIONAL CHANGE
 
 using namespace websockets;
 WebsocketsClient client;
@@ -62,7 +64,7 @@ void onMessageCallback(WebsocketsMessage message) {
 
 
 void startCameraServerEmb();
-//void setupLedFlash(int pin);
+void setupLedFlash(int pin);
 
 // ================
 // Presence Sensor
@@ -81,7 +83,8 @@ const int PIN_2_TO_STEP_MOTOR = 15;  //GPIO15
 const int PIN_3_TO_STEP_MOTOR = 14;  //GPIO14
 const int PIN_4_TO_STEP_MOTOR = 2;   //GPIO12
 
-const int stepsPerRevolution = 500;
+const int stepsPerRevolution = 2048;
+const int speedStepper = 10;
 
 Stepper myStepper(stepsPerRevolution,
                   PIN_1_TO_STEP_MOTOR,
@@ -101,15 +104,8 @@ WiFiClient espClient;
 PubSubClient clientMqtt(espClient);
 
 const char* mqtt_server = "test.mosquitto.org";
+// const char* mqtt_server = "broker.hivemq.com";
 const int mqtt_port = 1883; // Porta padrão do MQTT
-
-// ================
-// Step Motor
-// ================
-const int servoPin = 4; // Pino do servo motor
-Servo myServo;
-int position = 0;
-
 
 void setup() { 
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
@@ -117,18 +113,13 @@ void setup() {
   Serial.setDebugOutput(true);
   Serial.println();
 
-  // Servor Motor
-  myServo.attach(servoPin);
-  myServo.write(90); // Posiciona o servo no meio inicialmente
-  Serial.println("Servo configurado");
-
   // Presence Sensor
 
   pinMode(PIN_TO_SENSOR_PRESENCE, INPUT);
 
   // Step Motor
 
-  myStepper.setSpeed(60);
+  myStepper.setSpeed(speedStepper);
 
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -149,26 +140,13 @@ void setup() {
   config.pin_sccb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 10000000;
-  config.frame_size = FRAMESIZE_UXGA;
+  config.xclk_freq_hz = 10000000; // Reduzir a frequência para 10MHz
   config.pixel_format = PIXFORMAT_JPEG;  // for streaming
-  //config.pixel_format = PIXFORMAT_RGB565; // for face detection/recognition
+  config.frame_size = FRAMESIZE_VGA;
   config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
   config.fb_location = CAMERA_FB_IN_PSRAM;
-  config.jpeg_quality = 12;
-  config.fb_count = 1;
-
-  if (config.pixel_format == PIXFORMAT_JPEG) {
-    if (psramFound()) {
-      config.jpeg_quality = 10;
-      config.fb_count = 2;
-      config.grab_mode = CAMERA_GRAB_LATEST;
-    } else {
-      // Limit the frame size when PSRAM is not available
-      config.frame_size = FRAMESIZE_SVGA;
-      config.fb_location = CAMERA_FB_IN_DRAM;
-    }
-  }
+  config.jpeg_quality = 15;
+  config.fb_count = 2;
 
   // camera init
   esp_err_t err = esp_camera_init(&config);
@@ -177,21 +155,35 @@ void setup() {
     return;
   }
   sensor_t * s = esp_camera_sensor_get();
-  // initial sensors are flipped vertically and colors are a bit saturated
-  if (s->id.PID == OV3660_PID) {
-    s->set_vflip(s, 1);        // flip it back
-    s->set_brightness(s, 1);   // up the brightness just a bit
-    s->set_saturation(s, -2);  // lower the saturation
-  }
-  // drop down frame size for higher initial frame rate
-  if (config.pixel_format == PIXFORMAT_JPEG) {
-    s->set_framesize(s, FRAMESIZE_QVGA);
-  }
+  
+  // Configurações específicas do sensor (ajustes opcionais)
+  s->set_brightness(s, 1);    // Ajusta o brilho (varia de -2 a 2)
+  s->set_contrast(s, 1);      // Ajusta o contraste (varia de -2 a 2)
+  s->set_saturation(s, -2);   // Ajusta a saturação (varia de -2 a 2)
+  s->set_vflip(s, 1);         // Inverte verticalmente a imagem, se necessário
+  s->set_special_effect(s, 0); // Efeito especial (0 - sem efeito)
+  s->set_whitebal(s, 1);      // Ativa balanço de branco
+  s->set_awb_gain(s, 1);      // Ativa ganho automático do balanço de branco
+  s->set_wb_mode(s, 0);       // Define o modo de balanço de branco
+  s->set_exposure_ctrl(s, 1); // Controle de exposição
+  s->set_aec2(s, 1);          // Ativa o controle de exposição automático
+  s->set_ae_level(s, 0);      // Define o nível de exposição (varia de -2 a 2)
+  s->set_aec_value(s, 300);   // Define o valor de exposição (varia de 0 a 1200)
+  s->set_gain_ctrl(s, 1);     // Controle de ganho
+  s->set_agc_gain(s, 0);      // Ganho automático
+  s->set_gainceiling(s, (gainceiling_t)0); // Define o teto do ganho
+  s->set_bpc(s, 0);           // Correção de pixel defeituoso
+  s->set_wpc(s, 1);           // Correção de pixel branco
+  s->set_raw_gma(s, 1);       // Correção gama
+  s->set_lenc(s, 1);          // Correção de lente
+  s->set_hmirror(s, 0);       // Espelha a imagem horizontalmente
+  s->set_dcw(s, 1);           // Downsize EN
+  s->set_colorbar(s, 0);      // Barra de cores para teste
 
 // Setup LED FLash if LED pin is defined in camera_pins.h
-//#if defined(LED_GPIO_NUM)
-//  setupLedFlash(LED_GPIO_NUM);
-//#endif
+#if defined(LED_GPIO_NUM)
+  setupLedFlash(LED_GPIO_NUM);
+#endif
 
   WiFi.begin(ssid, password);
   WiFi.setSleep(false);
@@ -204,11 +196,10 @@ void setup() {
   Serial.println("WiFi connected");
   // Setting Mqtt Client
   clientMqtt.setServer(mqtt_server, mqtt_port);
-  clientMqtt.setCallback(callback);
 
   //Client WebSocket
   client.onMessage(onMessageCallback);
-  bool connected = client.connect(websockets_server_host, websockets_server_port, "/");
+  bool connected = client.connect(websockets_server_host, websockets_server_port,websockets_server_path );
   if (!connected) {
     Serial.println("WS connect failed!");
     Serial.println(WiFi.localIP());
@@ -228,6 +219,7 @@ void loop() {
     reconnect();
   }
   clientMqtt.loop();
+  client.poll();
   
   // Montando o JSON
   StaticJsonDocument<200> doc; 
@@ -244,40 +236,29 @@ void loop() {
     doc["camera"]=1;
     doc["esp_connected_ws"]=1;
     esp_camera_fb_return(fb);
-    client.poll();
   } else {
-    bool connected = client.connect(websockets_server_host, websockets_server_port, "/");
+    bool connected = client.connect(websockets_server_host, websockets_server_port,websockets_server_path);
     doc["esp_connected_ws"]=connected;
     doc["camera"]=0;
     Serial.print("Retry Connection result = ");
     Serial.print(connected);
     Serial.println(" ");
   }
+  
+  pinStateCurrent = digitalRead(PIN_TO_SENSOR_PRESENCE);
+  doc["sensor_presence"]=pinStateCurrent==HIGH? 1: 0;
+  Serial.print("pinStateCurrent = ");
+  Serial.print(pinStateCurrent);
+  Serial.println("");
 
-  unsigned long currentTime = millis();
-
-  if(isAbleToDetectMotion==1){
-    pinStateCurrent = digitalRead(PIN_TO_SENSOR_PRESENCE);
-    doc["sensor_presence"]=pinStateCurrent==HIGH? 1: 0;
-    //Serial.print("pinStateCurrent = ");
-    //Serial.print(pinStateCurrent);
-    //Serial.println("");
-
-    if (pinStateCurrent == HIGH) { // Detect motion
-      //Serial.println("Motion detected!");
-      motionDetectedTime = currentTime; // Record the time motion was detected      
-    }
-  }
-
-
-  if (currentTime - motionDetectedTime < motorRunDuration) {
-    //Serial.println("Rotating motor!");
-    myStepper.step(stepsPerRevolution / 10); // Rotate 36 degrees every loop iteration (to make full revolution in ~1 second)
+  if (pinStateCurrent == HIGH) { // Detect motion
+    Serial.println("Motion detected!");
+    Serial.println("Rotating motor!");
+    myStepper.step(stepsPerRevolution);
     isAbleToDetectMotion = 0;
     doc["belt_moving"]=1;
-  } else {
-    isAbleToDetectMotion = 1;
-    //Serial.println("Stop the motor!");
+  } else {  
+    Serial.println("Stop the motor!");
     myStepper.step(0); // Stop the motor
     doc["belt_moving"]=0;
   }
@@ -290,8 +271,6 @@ void loop() {
 
   // Sending information to mqtt broker
   clientMqtt.publish("payload/ser/info", jsonBuffer);
-
-  delay(100); // Small delay to reduce noise and debounce
 }
 
 
@@ -300,7 +279,6 @@ void reconnect() {
     Serial.print("Tentando conectar ao MQTT...");
     if (clientMqtt.connect("SisEmbRec")) {
       Serial.println("Conectado");
-      clientMqtt.subscribe("payload/ser/servo");
     } else {
       Serial.print("Falha, rc=");
       Serial.print(clientMqtt.state());
@@ -310,27 +288,4 @@ void reconnect() {
   }
 }
 
-void callback(char* topic, byte* payload, unsigned int length) {
-  char msg[length + 1];
-  strncpy(msg, (char*)payload, length);
-  msg[length] = '\0';
-  // Parse the JSON message
-  StaticJsonDocument<200> doc;
-  DeserializationError error = deserializeJson(doc, msg);
-
-  if (error) {
-    Serial.print("Erro ao fazer parsing do JSON: ");
-    Serial.println(error.c_str());
-    return;
-  }
-
-  int angle = doc["angle"];
-
-  myServo.write(angle);
-
-  Serial.print("Mensagem recebida [");
-  Serial.print(topic);
-  Serial.print("]: ");
-  Serial.println(msg);
-}
 
