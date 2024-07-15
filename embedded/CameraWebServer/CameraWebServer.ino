@@ -44,7 +44,8 @@
 const char* ssid = "MEI";
 const char* password = "205M20E15I";
 
-const char* websockets_server_host = "192.168.1.203"; //CHANGE HERE
+// const char* websockets_server_host = "192.168.1.203"; //CHANGE HERE
+const char* websockets_server_host = "89.116.74.170"; //CHANGE HERE
 const char* websockets_server_path = "/socket.io/?transport=websocket"; //CHANGE HERE
 const uint16_t websockets_server_port = 5000; // OPTIONAL CHANGE
 

@@ -6,6 +6,8 @@ from io import BytesIO
 
 from PIL import Image, UnidentifiedImageError
 
+connected_clients = set()
+
 def is_valid_image(image_bytes):
     try:
         Image.open(BytesIO(image_bytes))
@@ -17,16 +19,22 @@ def is_valid_image(image_bytes):
 
 async def handle_connection(websocket, path):    
     try:
+        connected_clients.add(websocket)
         message = await websocket.recv()
         if len(message) > 5000:
                 if is_valid_image(message):
-                        print(websocket.id)
                         with open("./camera/image.jpg", "wb") as f:
                             f.write(message)
-
-        print()
+                        with open("./camera/image.jpg", "rb") as f:
+                            image_bytes = f.read()
+                        websockets.broadcast(connected_clients, binascii.b2a_base64(image_bytes).decode('utf-8'))
     except websockets.exceptions.ConnectionClosed:
-        print()
+        print('Erro')
+    finally:
+        if len(connected_clients)>10:
+            connected_clients.clear()
+            
+        
 
 async def main():
     server = await websockets.serve(handle_connection, '0.0.0.0', 5000)
