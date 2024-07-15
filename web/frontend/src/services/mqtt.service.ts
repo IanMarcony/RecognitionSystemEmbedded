@@ -3,6 +3,8 @@ import mqtt from "mqtt";
 const brokerUrl = "ws://broker.emqx.io:8083/mqtt";
 const options = {
   clientId: "react-mqtt-client",
+  reconnectPeriod: 1000,
+  connectTimeout: 30 * 1000,
 };
 
 const getMqttClient = () => {

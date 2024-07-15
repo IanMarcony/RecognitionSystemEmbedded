@@ -23,7 +23,9 @@ const ProductsTable: React.FC<{
           <tr key={index}>
             <td> {obj.id} </td>
             <td> {obj.name} </td>
-            <td> {obj.imagem} </td>
+            <td>
+              <img width={100} height={100} src={obj.imagem} />
+            </td>
             <td> {obj.category.name} </td>
             <td> {obj.description} </td>
             <td>
