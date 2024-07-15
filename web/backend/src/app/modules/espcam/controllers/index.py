@@ -15,7 +15,7 @@ class EspCamController:
     def get_image(self):
         while True:
             try:
-                with open("image.jpg", "rb") as f:
+                with open("./camera/image.jpg", "rb") as f:
                     image_bytes = f.read()
                 image = Image.open(BytesIO(image_bytes))
                 img_io = BytesIO()
@@ -29,7 +29,7 @@ class EspCamController:
                 print("encountered an exception: ")
                 print(e)
 
-                with open("placeholder.jpg", "rb") as f:
+                with open("./camera/placeholder.jpg", "rb") as f:
                     image_bytes = f.read()
                 image = Image.open(BytesIO(image_bytes))
                 img_io = BytesIO()

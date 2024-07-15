@@ -15,23 +15,21 @@ def is_valid_image(image_bytes):
         print("image invalid")
         return False
 
-async def handle_connection(websocket, path):
-    while True:
-        try:
-            message = await websocket.recv()
-            # print(len(message))
-            if len(message) > 5000:
-                  if is_valid_image(message):
-                          print(websocket.id)
-                          with open("image.jpg", "wb") as f:
-                                f.write(message)
+async def handle_connection(websocket, path):    
+    try:
+        message = await websocket.recv()
+        if len(message) > 5000:
+                if is_valid_image(message):
+                        print(websocket.id)
+                        with open("./camera/image.jpg", "wb") as f:
+                            f.write(message)
 
-            print()
-        except websockets.exceptions.ConnectionClosed:
-            break
+        print()
+    except websockets.exceptions.ConnectionClosed:
+        print()
 
 async def main():
-    server = await websockets.serve(handle_connection, '0.0.0.0', 3001)
+    server = await websockets.serve(handle_connection, '0.0.0.0', 5000)
     print('WebSocket Server is ON')
     hostname = socket.gethostname()
     ip_address = socket.gethostbyname(hostname)
