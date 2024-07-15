@@ -3,8 +3,11 @@ import binascii
 import socket
 import asyncio
 from io import BytesIO
-
+from ultralytics import YOLO
 from PIL import Image, UnidentifiedImageError
+
+model = YOLO('./bestv8.pt')
+print(model.names)
 
 connected_clients = set()
 
@@ -28,6 +31,8 @@ async def handle_connection(websocket, path):
                         with open("./camera/image.jpg", "rb") as f:
                             image_bytes = f.read()
                         websockets.broadcast(connected_clients, binascii.b2a_base64(image_bytes).decode('utf-8'))
+                        results = model.track("./camera/image.jpg", classes=0, conf=0.80, imgsz=640)
+                        print(results)
     except websockets.exceptions.ConnectionClosed:
         print('Erro')
     finally:
