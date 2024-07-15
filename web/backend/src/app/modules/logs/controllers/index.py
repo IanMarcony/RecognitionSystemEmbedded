@@ -61,13 +61,20 @@ class LogsController:
                         "most_frequent_category": most_frequent_category})
     
     def create(self, body):
-        log = LogsAuditoria(
-            id_product= body["id_product"],
-            id_category= body["id_category"],
-            imagem_capturada= body["imagem_capturada"],
-        )
+        product_name = body['product_name']
+        product = Products.query.filter_by(name=product_name).first()
+
+        if product:
+            print(f"Product found: {product.name}")
+            log = LogsAuditoria(
+                id_product= product.id,
+                id_category= product.id_category,
+                imagem_capturada= "default",
+            )
+            db.session.add(log)
+            db.session.commit()
+            return log
+        else:
+            print("Product not found")
         
-        db.session.add(log)
-        db.session.commit()
-        return log
         

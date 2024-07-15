@@ -24,7 +24,7 @@ connected_clients = set()
 mqtt_client = mqtt.Client()
 mqtt_broker = "test.mosquitto.org"
 mqtt_port = 1883
-mqtt_topic = "servo/control"
+mqtt_topic = "payload/ser/recognition"
 
 def on_connect(client, userdata, flags, rc):
     print("Conectado ao MQTT Broker com código de resultado: " + str(rc))
@@ -78,6 +78,17 @@ async def main():
     
 def process_images():
     while True:
+        print('sending...')
+        mqtt_payload = {
+            "class_id": 1,
+            "class_name": "Queijo"
+        }
+        
+        # Converter o dicionário para uma string JSON
+        mqtt_message = json.dumps(mqtt_payload)
+        
+        # Publicar a mensagem JSON no MQTT
+        mqtt_client.publish(mqtt_topic, mqtt_message)
         if not image_queue.empty():
             image_bytes = image_queue.get()
             image = Image.open(BytesIO(image_bytes))

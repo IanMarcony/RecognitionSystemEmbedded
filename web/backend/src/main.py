@@ -3,6 +3,7 @@ from flask_cors import CORS
 from app import create_app
 from app.db import conn_db
 
+
 app = create_app()
 db = conn_db()
 migrate = Migrate(app, db)
