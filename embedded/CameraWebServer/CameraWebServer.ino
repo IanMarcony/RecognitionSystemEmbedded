@@ -12,6 +12,7 @@
 #include "esp_http_server.h"
 #include "driver/gpio.h"
 #include <PubSubClient.h>
+#include "base64.h"
 
 #define CAMERA_MODEL_AI_THINKER  // Has PSRAM
 
@@ -44,6 +45,7 @@ const char* ssid = "MEI";
 const char* password = "205M20E15I";
 
 const char* websockets_server_host = "192.168.1.203"; //CHANGE HERE
+const char* websockets_server_path = "/socket.io/?transport=websocket"; //CHANGE HERE
 const uint16_t websockets_server_port = 5000; // OPTIONAL CHANGE
 
 using namespace websockets;
@@ -80,7 +82,8 @@ const int PIN_2_TO_STEP_MOTOR = 15;  //GPIO15
 const int PIN_3_TO_STEP_MOTOR = 14;  //GPIO14
 const int PIN_4_TO_STEP_MOTOR = 2;   //GPIO12
 
-const int stepsPerRevolution = 500;
+const int stepsPerRevolution = 2048;
+const int speedStepper = 10;
 
 Stepper myStepper(stepsPerRevolution,
                   PIN_1_TO_STEP_MOTOR,
@@ -100,6 +103,7 @@ WiFiClient espClient;
 PubSubClient clientMqtt(espClient);
 
 const char* mqtt_server = "test.mosquitto.org";
+// const char* mqtt_server = "broker.hivemq.com";
 const int mqtt_port = 1883; // Porta padrão do MQTT
 
 void setup() { 
@@ -114,7 +118,7 @@ void setup() {
 
   // Step Motor
 
-  myStepper.setSpeed(60);
+  myStepper.setSpeed(speedStepper);
 
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -136,8 +140,8 @@ void setup() {
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 10000000; // Reduzir a frequência para 10MHz
-  config.frame_size = FRAMESIZE_UXGA;
   config.pixel_format = PIXFORMAT_JPEG;  // for streaming
+  config.frame_size = FRAMESIZE_VGA;
   config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
   config.fb_location = CAMERA_FB_IN_PSRAM;
   config.jpeg_quality = 15;
@@ -194,7 +198,7 @@ void setup() {
 
   //Client WebSocket
   client.onMessage(onMessageCallback);
-  bool connected = client.connect(websockets_server_host, websockets_server_port, "/socket.io/?transport=websocket");
+  bool connected = client.connect(websockets_server_host, websockets_server_port,websockets_server_path );
   if (!connected) {
     Serial.println("WS connect failed!");
     Serial.println(WiFi.localIP());
@@ -214,6 +218,7 @@ void loop() {
     reconnect();
   }
   clientMqtt.loop();
+  client.poll();
   
   // Montando o JSON
   StaticJsonDocument<200> doc; 
@@ -230,40 +235,29 @@ void loop() {
     doc["camera"]=1;
     doc["esp_connected_ws"]=1;
     esp_camera_fb_return(fb);
-    client.poll();
   } else {
-    bool connected = client.connect(websockets_server_host, websockets_server_port, "/socket.io/?transport=websocket");
+    bool connected = client.connect(websockets_server_host, websockets_server_port,websockets_server_path);
     doc["esp_connected_ws"]=connected;
     doc["camera"]=0;
     Serial.print("Retry Connection result = ");
     Serial.print(connected);
     Serial.println(" ");
   }
+  
+  pinStateCurrent = digitalRead(PIN_TO_SENSOR_PRESENCE);
+  doc["sensor_presence"]=pinStateCurrent==HIGH? 1: 0;
+  Serial.print("pinStateCurrent = ");
+  Serial.print(pinStateCurrent);
+  Serial.println("");
 
-  unsigned long currentTime = millis();
-
-  if(isAbleToDetectMotion==1){
-    pinStateCurrent = digitalRead(PIN_TO_SENSOR_PRESENCE);
-    doc["sensor_presence"]=pinStateCurrent==HIGH? 1: 0;
-    //Serial.print("pinStateCurrent = ");
-    //Serial.print(pinStateCurrent);
-    //Serial.println("");
-
-    if (pinStateCurrent == HIGH) { // Detect motion
-      Serial.println("Motion detected!");
-      motionDetectedTime = currentTime; // Record the time motion was detected      
-    }
-  }
-
-
-  if (currentTime - motionDetectedTime < motorRunDuration) {
-    //Serial.println("Rotating motor!");
-    myStepper.step(stepsPerRevolution / 10); // Rotate 36 degrees every loop iteration (to make full revolution in ~1 second)
+  if (pinStateCurrent == HIGH) { // Detect motion
+    Serial.println("Motion detected!");
+    Serial.println("Rotating motor!");
+    myStepper.step(stepsPerRevolution);
     isAbleToDetectMotion = 0;
     doc["belt_moving"]=1;
-  } else {
-    isAbleToDetectMotion = 1;
-    //Serial.println("Stop the motor!");
+  } else {  
+    Serial.println("Stop the motor!");
     myStepper.step(0); // Stop the motor
     doc["belt_moving"]=0;
   }
