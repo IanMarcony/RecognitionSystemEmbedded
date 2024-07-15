@@ -5,6 +5,6 @@ logs_routes = Blueprint('logs', __name__)
 logs_controller = LogsController()
 
 @logs_routes.route('/', methods=['GET'])
-@cross_origin(supports_credentials=True)
+@cross_origin()
 def get_logs():
     return logs_controller.index()

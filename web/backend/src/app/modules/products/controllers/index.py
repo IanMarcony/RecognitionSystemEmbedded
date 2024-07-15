@@ -53,6 +53,8 @@ class ProductsController:
             product.name = body_product.json['name']
         if 'description' in body_product.json:
             product.description = body_product.json['description']
+        if 'imagem' in body_product.json:
+            product.imagem = body_product.json['imagem']
         db.session.commit()
         
         return jsonify({'id': product.id})    

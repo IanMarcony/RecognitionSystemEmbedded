@@ -24,36 +24,35 @@ def create_app():
     app.register_blueprint(logs_routes, url_prefix='/logs')
     app.register_blueprint(esp_cam_routes, url_prefix='/esp')
     
-    mqtt = Mqtt(app)
+    with app.app_context():
+        mqtt = Mqtt(app)
 
-    logs_controller = LogsController()
-
-    @mqtt.on_connect()
-    def handle_connect(client, userdata, flags, rc):
-        print("Connected with result code "+str(rc))
-        mqtt.subscribe('payload/ser/recognition')
-
-    @mqtt.on_message()
-    def handle_mqtt_message(client, userdata, message):
-        payload = message.payload.decode()
-        print(f"Received message on topic {message.topic}: {payload}")
-
-        # Parse o JSON recebido
-        mqtt_payload = json.loads(payload)
         
-        msg_create = {
-            "product_name":mqtt_payload["class_name"]
-        }
-        
-        # Crie a entrada no banco de dados usando a classe controladora
-        logs_controller.create(msg_create)
+        logs_controller = LogsController()
 
-        # Envie a informação para o tópico servo/control
-        response_payload = json.dumps({
-            "class_id": mqtt_payload["class_id"],
-            "class_name": mqtt_payload["class_name"]
-        })
-        mqtt.publish('servo/control', response_payload)
+        @mqtt.on_connect()
+        def handle_connect(client, userdata, flags, rc):
+            print("Connected with result code "+str(rc))
+            mqtt.subscribe('payload/ser/recognition')
 
+        @mqtt.on_message()
+        def handle_mqtt_message(client, userdata, message):
+            payload = message.payload.decode()
+
+            # Parse o JSON recebido
+            mqtt_payload = json.loads(payload)
+            
+            msg_create = {
+                "product_name":mqtt_payload["class_name"]
+            }
+            
+            # Crie a entrada no banco de dados usando a classe controladora
+            logs_controller.create(app, msg_create)
+
+            # Envie a informação para o tópico servo/control
+            if mqtt_payload["class_name"]=="coelho":
+                mqtt.publish('servo/control', 0)
+            elif mqtt_payload["class_name"]=="bola":
+                mqtt.publish('servo/control', 180)
 
     return app
